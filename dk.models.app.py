@@ -76,7 +76,7 @@ if uploaded_file:
         features = df.select_dtypes(include=[np.number]).drop(columns=available_roles, errors='ignore')
 
         X = features
-        Y = df[available_roles].astype(int)
+        Y = df[available_roles].fillna(0).astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
         def train_model(X_train, y_train, model_type):
