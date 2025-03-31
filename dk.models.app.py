@@ -112,7 +112,7 @@ if 'Series ID' in df.columns:
                 cap_salary = pd.to_numeric(cap['Draftkings Captain Salary'], errors='coerce')
                 util_salary = (2/3) * pd.to_numeric(utils['Draftkings Captain Salary'], errors='coerce').fillna(0).sum()
                 total_salary = cap_salary + util_salary
-                if total_salary <= 50000:
+                if 43000 <= total_salary <= 50000:
                     cap_fp = 1.5 * cap['Predicted_FP_Ensemble']
                     util_fp = utils['Predicted_FP_Ensemble'].sum()
                     total_fp = cap_fp + util_fp
