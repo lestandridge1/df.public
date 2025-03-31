@@ -126,6 +126,15 @@ if 'Series ID' in df.columns:
 
         top_lineups = sorted(lineups, key=lambda x: -x['Total_FP'])[:top_n_lineups]
 
+        # Estimate total combinations and sampling coverage
+        total_players = len(series_df)
+        from math import comb
+        total_combinations = total_players * comb(total_players - 1, 5) if total_players >= 6 else 0
+        sampled_combinations = len(lineups)
+        if total_combinations > 0:
+            coverage_percent = round((sampled_combinations / total_combinations) * 100, 2)
+            st.markdown(f"🔍 **Sampled {sampled_combinations:,} of {total_combinations:,} possible lineups ({coverage_percent}%)**")
+
         # Compute true lineup IDs BEFORE showing top 10 lineups
         role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
         series_df.columns = series_df.columns.str.strip().str.replace('?', '', regex=False)
