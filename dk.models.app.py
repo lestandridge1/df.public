@@ -109,7 +109,7 @@ if 'Series ID' in df.columns:
                 utils = sample.drop(index=cap.name)
                 if len(utils) != 5:
                     continue
-                cap_salary = cap['Draftkings Captain Salary']
+                cap_salary = pd.to_numeric(cap['Draftkings Captain Salary'], errors='coerce')
                 util_salary = (2/3) * pd.to_numeric(utils['Draftkings Captain Salary'], errors='coerce').fillna(0).sum()
                 total_salary = cap_salary + util_salary
                 if total_salary <= 50000:
