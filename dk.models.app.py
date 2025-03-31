@@ -96,10 +96,8 @@ st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points by Series ID
 if 'Series ID' in df.columns:
     unique_series = df['Series ID'].unique().tolist()
     selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
-unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
-selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
-        unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
-        selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
+
+
     if 'Predicted_FP_Ensemble' in df.columns and 'Draftkings Captain Salary' in df.columns:
         top_n_lineups = st.slider("How many top lineups to generate?", min_value=1, max_value=500, value=200)
 
