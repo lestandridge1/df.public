@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from sklearn.linear_model import Lasso, Ridge, ElasticNet
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary
 import random
 import matplotlib.pyplot as plt
@@ -63,59 +62,33 @@ if uploaded_file:
         st.subheader("📊 DraftKings Points Calculated")
         st.dataframe(df[['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
 
-    # --- 3. Model Selection --- #
-    st.subheader("🧠 Model Selection and Role Prediction")
+    # --- 3. Predict Fantasy Points with Regression Models --- #
+    st.subheader("🧠 Predict Fantasy Points with Regression Models")
     model_types = ["Lasso", "Ridge", "ElasticNet"]
-    st.write("Training models:", ", ".join(model_types))
 
-    role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
-    df.columns = df.columns.str.strip().str.replace('?', '', regex=False)
-    available_roles = [col for col in role_cols if col in df.columns]
-
-    if available_roles:
-        features = df.select_dtypes(include=[np.number]).drop(columns=available_roles, errors='ignore')
-
+    if 'DraftKings_FP_Calculated' in df.columns:
+        features = df.select_dtypes(include=[np.number]).drop(columns=['DraftKings_FP_Calculated'], errors='ignore')
         X = features.apply(pd.to_numeric, errors='coerce').fillna(0)
-        Y = df[available_roles].fillna(0).astype(int)
-        X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
+        y = df['DraftKings_FP_Calculated']
 
-        def train_model(X_train, y_train, model_type):
-            if model_type == "Lasso":
-                return Lasso(alpha=0.1).fit(X_train, y_train)
-            elif model_type == "Ridge":
-                return Ridge(alpha=1.0).fit(X_train, y_train)
-            else:
-                return ElasticNet(alpha=0.1, l1_ratio=0.5).fit(X_train, y_train)
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
         predictions = {}
-        st.text("Classification Reports for All Roles:")
-        for role in available_roles:
-            st.write(f"\n**{role}**")
-            preds_all = []
-            for model_type in model_types:
-                model = train_model(X_train, Y_train[role], model_type)
-                preds = model.predict(X_test) > 0.5
-                preds_all.append(preds.astype(int))
-                st.text(f"Model: {model_type}\n" + classification_report(Y_test[role], preds))
+        for model_type in model_types:
+            if model_type == "Lasso":
+                model = Lasso(alpha=0.1)
+            elif model_type == "Ridge":
+                model = Ridge(alpha=1.0)
+            else:
+                model = ElasticNet(alpha=0.1, l1_ratio=0.5)
 
-            # Ensemble Voting: majority vote
-            ensemble_pred = (np.sum(preds_all, axis=0) >= 2).astype(int)
-            predictions[role] = ensemble_pred
-            st.text("Ensemble (Voting)\n" + classification_report(Y_test[role], ensemble_pred))
+            model.fit(X_train, y_train)
+            preds = model.predict(X)
+            df[f'Predicted_FP_{model_type}'] = preds
+            predictions[model_type] = preds
 
-        # --- 6. Accuracy Evaluator --- #
-        st.subheader("✅ Accuracy Evaluator")
-        accuracy_metrics = []
-        for role in available_roles:
-            acc = accuracy_score(Y_test[role], predictions[role])
-            accuracy_metrics.append((role, round(acc * 100, 2)))
+        df['Predicted_FP_Ensemble'] = np.mean([predictions[m] for m in model_types], axis=0)
 
-        acc_df = pd.DataFrame(accuracy_metrics, columns=["Role", "Accuracy (%)"])
-        st.table(acc_df)
-
-        total_matches = sum([np.sum(predictions[role] == Y_test[role].values) for role in available_roles])
-        total_predictions = sum([len(Y_test[role]) for role in available_roles])
-        st.metric("Overall Match Accuracy", f"{round((total_matches / total_predictions) * 100, 2)}%")
-
+        st.success("Fantasy point predictions completed. Added columns: Predicted_FP_Lasso, Predicted_FP_Ridge, Predicted_FP_ElasticNet, and Predicted_FP_Ensemble")
     else:
-        st.warning("No role columns found to train models on. Expected: Was_Captain, Was_UTIL1, ..., Was_UTIL5")
+        st.warning("Missing column: DraftKings_FP_Calculated")
