@@ -131,9 +131,12 @@ if 'Series ID' in df.columns:
             st.markdown(f"**Lineup #{i+1}**")
             cap = series_df.loc[l['Captain']]
             utils = series_df.loc[l['UTILs']]
-            st.write("🧢 Captain:", cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
+            st.write("🧢 Captain:", cap.get('Starters', 'N/A'), cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
             st.write("🔧 UTILs:")
-            st.dataframe(utils[['Team', 'Opponent', 'Predicted_FP_Ensemble']])
+            util_display = utils.copy()
+            if 'Starters' in util_display.columns:
+                util_display.rename(columns={'Starters': 'PlayerName'}, inplace=True)
+            st.dataframe(util_display[['PlayerName', 'Team', 'Opponent', 'Predicted_FP_Ensemble']])
             st.markdown(f"**Total Predicted FP**: {round(l['Total_FP'], 2)} | **Total Salary**: {int(l['Total_Salary'])}")
 
         # --- 5. Optional: CSV Export & Score Comparison --- #
@@ -166,7 +169,7 @@ if 'Series ID' in df.columns:
             predicted = 1.5 * cap['Predicted_FP_Ensemble'] + utils['Predicted_FP_Ensemble'].sum()
             actual = 1.5 * cap['DraftKings_FP_Calculated'] + utils['DraftKings_FP_Calculated'].sum()
             comparison_rows.append({
-                'Captain': cap['Team'],
+                'Captain': cap.get('Starters', cap['Team']),
                 'Total_Predicted_FP': predicted,
                 'Total_Actual_FP': actual,
                 'Difference': actual - predicted
