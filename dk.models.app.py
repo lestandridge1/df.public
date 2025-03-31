@@ -91,14 +91,17 @@ if uploaded_file:
 
         st.success("Fantasy point predictions completed. Added columns: Predicted_FP_Lasso, Predicted_FP_Ridge, Predicted_FP_ElasticNet, and Predicted_FP_Ensemble")
 
-    # --- 4. Lineup Optimizer Using Predicted Fantasy Points --- #
-    st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points")
+    # --- 4. Lineup Optimizer Using Predicted Fantasy Points by Series ID --- #
+    st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points by Series ID")
+        unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
+        selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
     if 'Predicted_FP_Ensemble' in df.columns and 'Draftkings Captain Salary' in df.columns:
         top_n_lineups = st.slider("How many top lineups to generate?", min_value=1, max_value=500, value=200)
 
+                series_df = df[df['Series ID'] == selected_series]
         lineups = []
         for _ in range(top_n_lineups * 5):
-            sample = df.sample(n=6)
+            sample = series_df.sample(n=6)
             for i in range(len(sample)):
                 cap = sample.iloc[i]
                 utils = sample.drop(index=cap.name)
@@ -124,8 +127,8 @@ if uploaded_file:
 
         for i, l in enumerate(top_lineups[:10]):
             st.markdown(f"**Lineup #{i+1}**")
-            cap = df.loc[l['Captain']]
-            utils = df.loc[l['UTILs']]
+            cap = series_df.loc[l['Captain']]
+            utils = series_df.loc[l['UTILs']]
             st.write("🧢 Captain:", cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
             st.write("🔧 UTILs:")
             st.dataframe(utils[['Team', 'Opponent', 'Predicted_FP_Ensemble']])
@@ -133,9 +136,9 @@ if uploaded_file:
 
         # Optional: Check for ground truth match if Was_Captain and Was_UTIL* are available
         role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
-        df.columns = df.columns.str.strip().str.replace('?', '', regex=False)
+        series_df.columns = series_df.columns.str.strip().str.replace('?', '', regex=False)
         if all(col in df.columns for col in role_cols):
-            true_lineup_ids = df[df['Was_Captain'] == 1].index.tolist() + df[[f'Was_UTIL{i}' for i in range(1,6)]].stack().reset_index().query('0 == 1')['level_0'].tolist()
+            true_lineup_ids = series_df[series_df['Was_Captain'] == 1].index.tolist() + series_df[[f'Was_UTIL{i}' for i in range(1,6)]].stack().reset_index().query('0 == 1')['level_0'].tolist()
             true_lineup_ids = list(set(true_lineup_ids))
             found_rank = None
             for idx, l in enumerate(top_lineups):
