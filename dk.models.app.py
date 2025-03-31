@@ -125,6 +125,18 @@ if 'Series ID' in df.columns:
                     lineups.append(lineup)
 
         top_lineups = sorted(lineups, key=lambda x: -x['Total_FP'])[:top_n_lineups]
+
+        # Compute true lineup IDs BEFORE showing top 10 lineups
+        role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
+        series_df.columns = series_df.columns.str.strip().str.replace('?', '', regex=False)
+        if all(col in series_df.columns for col in role_cols):
+            util_ids = []
+            for i in range(1, 6):
+                if f'Was_UTIL{i}' in series_df.columns:
+                    util_ids.extend(series_df[series_df[f'Was_UTIL{i}'] == 1].index.tolist())
+            true_lineup_ids = series_df[series_df['Was_Captain'] == 1].index.tolist() + util_ids
+            true_lineup_ids = list(set(true_lineup_ids))
+
         highlight_matches = st.checkbox("✨ Highlight historical perfect match lineups")
         st.write(f"Generated top {len(top_lineups)} lineups below:")
 
