@@ -140,13 +140,9 @@ if 'Series ID' in df.columns:
                 match_count = len(set(lineup_ids).intersection(set(true_lineup_ids)))
                 is_match = match_count == 6 
             if highlight_matches and is_match:
-                with st.container():
-                    st.markdown(
-                        f"<div style='background-color: #d4edda; padding: 10px; border-radius: 10px;'><strong>Lineup #{i+1} - Perfect Match ✅</strong></div>",
-                        unsafe_allow_html=True
-                    )
-                else:
-                    st.markdown(f"**Lineup #{i+1}** - {match_count}/6 matched players")
+                st.markdown(f"✅ **Lineup #{i+1} - Perfect Match**")
+            else:
+                st.markdown(f"**Lineup #{i+1}** - {match_count}/6 matched players")
             cap = series_df.loc[l['Captain']]
             utils = series_df.loc[l['UTILs']]
             st.write("🧢 Captain:", cap.get('Starters', 'N/A'), cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
