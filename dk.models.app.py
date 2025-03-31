@@ -6,6 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report, accuracy_score
 from pulp import LpProblem, LpMaximize, LpVariable, lpSum, LpBinary
 import random
+import matplotlib.pyplot as plt
 
 st.title("🏀 DraftKings NBA Lineup Optimizer")
 
@@ -26,7 +27,6 @@ if uploaded_file:
     if all(col in df.columns for col in stat_cols):
 
         def compute_dk_points(row):
-            stats = [row['PTS'], row['3PM'], row['REB'], row['AST'], row['BLK'], row['STL'], row['TOV']]
             double_double_count = sum([row['PTS'] >= 10, row['REB'] >= 10, row['AST'] >= 10, row['STL'] >= 10, row['BLK'] >= 10])
             triple_bonus = 3 if double_double_count >= 3 else 0
             double_bonus = 1.5 if double_double_count >= 2 else 0
@@ -51,7 +51,6 @@ if uploaded_file:
     if available_roles:
         features = df.select_dtypes(include=[np.number]).drop(columns=available_roles, errors='ignore').dropna(axis=1)
 
-        # Multi-output prediction
         X = features
         Y = df[available_roles].astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
@@ -99,8 +98,7 @@ if uploaded_file:
         season_filter = st.selectbox("Filter by Season (optional)", options=["All"] + sorted(df['Season'].dropna().unique().tolist()))
 
         match_ranks = []
-
-                filtered_df = df.copy()
+        filtered_df = df.copy()
         if team_filter != "All":
             filtered_df = filtered_df[filtered_df['Team'] == team_filter]
         if season_filter != "All":
@@ -112,13 +110,13 @@ if uploaded_file:
             players = players.dropna(subset=['DraftKings_FP_Calculated', 'Draftkings Captain Salary'])
 
             if players.shape[0] < 6:
-                continue  # skip if not enough players
+                continue
 
             candidates = []
             for cap_idx in players.index:
                 cap_row = players.loc[cap_idx]
                 util_pool = players.drop(index=cap_idx)
-                util_combos = util_pool.sample(min(5, len(util_pool)))  # quick sample, full combo gen is heavy
+                util_combos = util_pool.sample(min(5, len(util_pool)))
 
                 util_salary = (2/3) * util_combos['Draftkings Captain Salary'].sum()
                 total_salary = cap_row['Draftkings Captain Salary'] + util_salary
@@ -131,7 +129,6 @@ if uploaded_file:
 
             candidates = sorted(candidates, key=lambda x: -x[0])
 
-            # Find ground truth lineup
             ground_truth = players[players[role_cols].sum(axis=1) > 0].index.tolist()
             if len(ground_truth) == 6:
                 for rank, (_, lineup_ids) in enumerate(candidates[:top_n]):
@@ -139,46 +136,40 @@ if uploaded_file:
                         match_ranks.append(rank + 1)
                         break
                 else:
-                    match_ranks.append(None)  # not found
+                    match_ranks.append(None)
 
         st.write("Found Lineups at Ranks (if matched within Top-N):")
         st.write(match_ranks)
         found_count = sum(1 for x in match_ranks if x is not None)
         total = len(match_ranks)
         st.metric("Match Rate in Top-N", f"{found_count}/{total} ({round((found_count/total)*100, 2)}%)")
-    else:
-        st.warning("Missing required columns: Series ID, DraftKings_FP_Calculated, or Draftkings Captain Salary")
 
         # --- 8. Match Rank Distribution Visualization & Export --- #
-    if match_ranks:
-        import matplotlib.pyplot as plt
+        if match_ranks:
+            st.subheader("📊 Match Rank Distribution")
+            valid_ranks = [r for r in match_ranks if r is not None]
+            if valid_ranks:
+                fig, ax = plt.subplots()
+                ax.hist(valid_ranks, bins=range(1, max(valid_ranks)+2), align='left', rwidth=0.8)
+                ax.set_xlabel("Rank Where Match Occurred")
+                ax.set_ylabel("Number of Contests")
+                ax.set_title("Distribution of Correct Lineup Rank Position")
+                st.pyplot(fig)
+            else:
+                st.info("No matches found in Top-N for visualization.")
 
-        st.subheader("📊 Match Rank Distribution")
-        valid_ranks = [r for r in match_ranks if r is not None]
-        if valid_ranks:
-            fig, ax = plt.subplots()
-            ax.hist(valid_ranks, bins=range(1, max(valid_ranks)+2), align='left', rwidth=0.8)
-            ax.set_xlabel("Rank Where Match Occurred")
-            ax.set_ylabel("Number of Contests")
-            ax.set_title("Distribution of Correct Lineup Rank Position")
-            st.pyplot(fig)
-                else:
-            st.info("No matches found in Top-N for visualization.")
+            export_n = st.number_input("How many top lineups to export?", min_value=1, max_value=100, value=10)
+            export_lineups = candidates[:export_n]
+            export_rows = []
+            for i, (fp, lineup_ids) in enumerate(export_lineups):
+                lineup_data = df.loc[lineup_ids].copy()
+                lineup_data['Lineup_Rank'] = i + 1
+                lineup_data['Projected_Total_FP'] = fp
+                export_rows.append(lineup_data)
 
-        # Export Top-N Lineups CSV
-        export_n = st.number_input("How many top lineups to export?", min_value=1, max_value=100, value=10)
-        export_lineups = candidates[:export_n]
-        export_rows = []
-        for i, (fp, lineup_ids) in enumerate(export_lineups):
-            lineup_data = df.loc[lineup_ids].copy()
-            lineup_data['Lineup_Rank'] = i + 1
-            lineup_data['Projected_Total_FP'] = fp
-            export_rows.append(lineup_data)
-
-        if export_rows:
-            export_df = pd.concat(export_rows)
-            csv = export_df.to_csv(index=False).encode('utf-8')
-            st.download_button("⬇️ Download Top Lineups CSV", data=csv, file_name="top_draftkings_lineups.csv", mime='text/csv')
-
-    # (Remaining code unchanged: Salary Optimizer, Monte Carlo Sim)
-    # [code continues...]
+            if export_rows:
+                export_df = pd.concat(export_rows)
+                csv = export_df.to_csv(index=False).encode('utf-8')
+                st.download_button("⬇️ Download Top Lineups CSV", data=csv, file_name="top_draftkings_lineups.csv", mime='text/csv')
+    else:
+        st.warning("Missing required columns: Series ID, DraftKings_FP_Calculated, or Draftkings Captain Salary")
