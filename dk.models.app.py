@@ -100,8 +100,7 @@ if 'Series ID' in df.columns:
 
     if 'Predicted_FP_Ensemble' in df.columns and 'Draftkings Captain Salary' in df.columns:
         top_n_lineups = st.slider("How many top lineups to generate?", min_value=1, max_value=500, value=200)
-
-                        series_df = df[df['Series ID'] == selected_series]
+        series_df = df[df['Series ID'] == selected_series]
         lineups = []
         for _ in range(top_n_lineups * 5):
             sample = series_df.sample(n=6)
