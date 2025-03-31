@@ -90,5 +90,62 @@ if uploaded_file:
         df['Predicted_FP_Ensemble'] = np.mean([predictions[m] for m in model_types], axis=0)
 
         st.success("Fantasy point predictions completed. Added columns: Predicted_FP_Lasso, Predicted_FP_Ridge, Predicted_FP_ElasticNet, and Predicted_FP_Ensemble")
-    else:
+        else:
         st.warning("Missing column: DraftKings_FP_Calculated")
+
+    # --- 4. Lineup Optimizer Using Predicted Fantasy Points --- #
+    st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points")
+    if 'Predicted_FP_Ensemble' in df.columns and 'Draftkings Captain Salary' in df.columns:
+        top_n_lineups = st.slider("How many top lineups to generate?", min_value=1, max_value=500, value=200)
+
+        lineups = []
+        for _ in range(top_n_lineups * 5):
+            sample = df.sample(n=6)
+            for i in range(len(sample)):
+                cap = sample.iloc[i]
+                utils = sample.drop(index=cap.name)
+                if len(utils) != 5:
+                    continue
+                cap_salary = cap['Draftkings Captain Salary']
+                util_salary = (2/3) * utils['Draftkings Captain Salary'].sum()
+                total_salary = cap_salary + util_salary
+                if total_salary <= 50000:
+                    cap_fp = 1.5 * cap['Predicted_FP_Ensemble']
+                    util_fp = utils['Predicted_FP_Ensemble'].sum()
+                    total_fp = cap_fp + util_fp
+                    lineup = {
+                        'Captain': cap.name,
+                        'UTILs': utils.index.tolist(),
+                        'Total_FP': total_fp,
+                        'Total_Salary': total_salary
+                    }
+                    lineups.append(lineup)
+
+        top_lineups = sorted(lineups, key=lambda x: -x['Total_FP'])[:top_n_lineups]
+        st.write(f"Generated top {len(top_lineups)} lineups below:")
+
+        for i, l in enumerate(top_lineups[:10]):
+            st.markdown(f"**Lineup #{i+1}**")
+            cap = df.loc[l['Captain']]
+            utils = df.loc[l['UTILs']]
+            st.write("🧢 Captain:", cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
+            st.write("🔧 UTILs:")
+            st.dataframe(utils[['Team', 'Opponent', 'Predicted_FP_Ensemble']])
+            st.markdown(f"**Total Predicted FP**: {round(l['Total_FP'], 2)} | **Total Salary**: {int(l['Total_Salary'])}")
+
+        # Optional: Check for ground truth match if Was_Captain and Was_UTIL* are available
+        role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
+        df.columns = df.columns.str.strip().str.replace('?', '', regex=False)
+        if all(col in df.columns for col in role_cols):
+            true_lineup_ids = df[df['Was_Captain'] == 1].index.tolist() + df[[f'Was_UTIL{i}' for i in range(1,6)]].stack().reset_index().query('0 == 1')['level_0'].tolist()
+            true_lineup_ids = list(set(true_lineup_ids))
+            found_rank = None
+            for idx, l in enumerate(top_lineups):
+                lineup_ids = [l['Captain']] + l['UTILs']
+                if set(lineup_ids) == set(true_lineup_ids):
+                    found_rank = idx + 1
+                    break
+            if found_rank:
+                st.success(f"✅ Found historical true lineup in top {found_rank} predicted lineups!")
+            else:
+                st.info("❌ Historical true lineup was NOT found in the top predicted lineups.")
