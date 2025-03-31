@@ -69,7 +69,7 @@ if uploaded_file:
     if 'DraftKings_FP_Calculated' in df.columns:
         features = df.select_dtypes(include=[np.number]).drop(columns=['DraftKings_FP_Calculated'], errors='ignore')
         X = features.apply(pd.to_numeric, errors='coerce').fillna(0)
-        y = df['DraftKings_FP_Calculated']
+        y = pd.to_numeric(df['DraftKings_FP_Calculated'], errors='coerce').fillna(0)
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
