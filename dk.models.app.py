@@ -39,12 +39,21 @@ if uploaded_file:
 
     if all(col in df.columns for col in stat_cols):
         def compute_dk_points(row):
-            double_double_count = sum([row['PTS'] >= 10, row['REB'] >= 10, row['AST'] >= 10, row['STL'] >= 10, row['BLK'] >= 10])
+            pts = row.get('PTS', row.get('Points', 0))
+            threes = row.get('3PM', row.get('3P', 0))
+            reb = row.get('REB', row.get('TRB', 0))
+            ast = row.get('AST', row.get('Assists', 0))
+            blk = row.get('BLK', row.get('Blocks', 0))
+            stl = row.get('STL', row.get('Steals', 0))
+            tov = row.get('TOV', row.get('Turnovers', 0))
+
+            double_double_count = sum([pts >= 10, reb >= 10, ast >= 10, stl >= 10, blk >= 10])
             triple_bonus = 3 if double_double_count >= 3 else 0
             double_bonus = 1.5 if double_double_count >= 2 else 0
+
             return (
-                row['PTS'] + 0.5 * row['3PM'] + 1.25 * row['REB'] + 1.5 * row['AST'] +
-                2 * row['BLK'] + 2 * row['STL'] - 0.5 * row['TOV'] + double_bonus + triple_bonus
+                pts + 0.5 * threes + 1.25 * reb + 1.5 * ast +
+                2 * blk + 2 * stl - 0.5 * tov + double_bonus + triple_bonus
             )
 
         df['DraftKings_FP_Calculated'] = df.apply(compute_dk_points, axis=1)
