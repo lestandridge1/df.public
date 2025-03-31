@@ -90,8 +90,6 @@ if uploaded_file:
         df['Predicted_FP_Ensemble'] = np.mean([predictions[m] for m in model_types], axis=0)
 
         st.success("Fantasy point predictions completed. Added columns: Predicted_FP_Lasso, Predicted_FP_Ridge, Predicted_FP_ElasticNet, and Predicted_FP_Ensemble")
-        else:
-        st.warning("Missing column: DraftKings_FP_Calculated")
 
     # --- 4. Lineup Optimizer Using Predicted Fantasy Points --- #
     st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points")
