@@ -23,8 +23,8 @@ if uploaded_file:
     st.dataframe(df.head())
 
     # --- 2. DraftKings Fantasy Point Calculator --- #
-    stat_cols = ['PTS', '3P', 'TRB', 'AST', 'BLK', 'STL', 'TOV']
-    alt_names = ['Points', '3PM', 'REB', 'Assists', 'Blocks', 'Steals', 'Turnovers']
+    stat_cols = ['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV']
+    alt_names = ['Points', '3P', 'TRB', 'Assists', 'Blocks', 'Steals', 'Turnovers']
     col_map = dict(zip(stat_cols, alt_names))
     available = [col for col in stat_cols if col in df.columns]
 
@@ -39,13 +39,16 @@ if uploaded_file:
 
     if all(col in df.columns for col in stat_cols):
         def compute_dk_points(row):
-            pts = row.get('PTS', row.get('Points', 0))
-            threes = row.get('3P', row.get('3P', 0))
-            reb = row.get('TRB', row.get('TRB', 0))
-            ast = row.get('AST', row.get('Assists', 0))
-            blk = row.get('BLK', row.get('Blocks', 0))
-            stl = row.get('STL', row.get('Steals', 0))
-            tov = row.get('TOV', row.get('Turnovers', 0))
+            try:
+                pts = float(row.get('PTS', row.get('Points', 0)))
+                threes = float(row.get('3PM', row.get('3P', 0)))
+                reb = float(row.get('REB', row.get('TRB', 0)))
+                ast = float(row.get('AST', row.get('Assists', 0)))
+                blk = float(row.get('BLK', row.get('Blocks', 0)))
+                stl = float(row.get('STL', row.get('Steals', 0)))
+                tov = float(row.get('TOV', row.get('Turnovers', 0)))
+            except Exception as e:
+                return 0.0
 
             double_double_count = sum([pts >= 10, reb >= 10, ast >= 10, stl >= 10, blk >= 10])
             triple_bonus = 3 if double_double_count >= 3 else 0
@@ -58,7 +61,7 @@ if uploaded_file:
 
         df['DraftKings_FP_Calculated'] = df.apply(compute_dk_points, axis=1)
         st.subheader("📊 DraftKings Points Calculated")
-        st.dataframe(df[['PTS', '3P', 'TRB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
+        st.dataframe(df[['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
 
     # --- 3. Model Selection --- #
     st.subheader("🧠 Model Selection and Role Prediction")
