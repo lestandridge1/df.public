@@ -23,8 +23,8 @@ if uploaded_file:
     st.dataframe(df.head())
 
     # --- 2. DraftKings Fantasy Point Calculator --- #
-    stat_cols = ['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV']
-    alt_names = ['Points', '3P', 'TRB', 'Assists', 'Blocks', 'Steals', 'Turnovers']
+    stat_cols = ['PTS', '3P', 'TRB', 'AST', 'BLK', 'STL', 'TOV']
+    alt_names = ['Points', '3PM', 'REB', 'Assists', 'Blocks', 'Steals', 'Turnovers']
     col_map = dict(zip(stat_cols, alt_names))
     available = [col for col in stat_cols if col in df.columns]
 
