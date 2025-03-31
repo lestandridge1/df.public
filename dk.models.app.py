@@ -125,10 +125,28 @@ if 'Series ID' in df.columns:
                     lineups.append(lineup)
 
         top_lineups = sorted(lineups, key=lambda x: -x['Total_FP'])[:top_n_lineups]
+        highlight_matches = st.checkbox("✨ Highlight historical perfect match lineups")
         st.write(f"Generated top {len(top_lineups)} lineups below:")
 
         for i, l in enumerate(top_lineups[:10]):
-            st.markdown(f"**Lineup #{i+1}**")
+            is_match = False
+            if 'true_lineup_ids' in locals():
+                lineup_ids = [l['Captain']] + l['UTILs']
+                is_match = set(lineup_ids) == set(true_lineup_ids)
+            match_count = 0
+            is_match = False
+            if 'true_lineup_ids' in locals():
+                lineup_ids = [l['Captain']] + l['UTILs']
+                match_count = len(set(lineup_ids).intersection(set(true_lineup_ids)))
+                is_match = match_count == 6 
+            if highlight_matches and is_match:
+                with st.container():
+                    st.markdown(
+                        f"<div style='background-color: #d4edda; padding: 10px; border-radius: 10px;'><strong>Lineup #{i+1} - Perfect Match ✅</strong></div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(f"**Lineup #{i+1}** - {match_count}/6 matched players")
             cap = series_df.loc[l['Captain']]
             utils = series_df.loc[l['UTILs']]
             st.write("🧢 Captain:", cap.get('Starters', 'N/A'), cap['Team'], cap['Opponent'], round(cap['Predicted_FP_Ensemble'], 2))
@@ -180,7 +198,7 @@ if 'Series ID' in df.columns:
         # Optional: Check for ground truth match if Was_Captain and Was_UTIL* are available
         role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
         series_df.columns = series_df.columns.str.strip().str.replace('?', '', regex=False)
-        if all(col in df.columns for col in role_cols):
+        if all(col in series_df.columns for col in role_cols):
             true_lineup_ids = series_df[series_df['Was_Captain'] == 1].index.tolist() + series_df[[f'Was_UTIL{i}' for i in range(1,6)]].stack().reset_index().query('0 == 1')['level_0'].tolist()
             true_lineup_ids = list(set(true_lineup_ids))
             found_rank = None
