@@ -92,7 +92,9 @@ if uploaded_file:
         st.success("Fantasy point predictions completed. Added columns: Predicted_FP_Lasso, Predicted_FP_Ridge, Predicted_FP_ElasticNet, and Predicted_FP_Ensemble")
 
     # --- 4. Lineup Optimizer Using Predicted Fantasy Points by Series ID --- #
-    st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points by Series ID")
+st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points by Series ID")
+unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
+selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
         unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
         selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
     if 'Predicted_FP_Ensemble' in df.columns and 'Draftkings Captain Salary' in df.columns:
@@ -133,6 +135,42 @@ if uploaded_file:
             st.write("🔧 UTILs:")
             st.dataframe(utils[['Team', 'Opponent', 'Predicted_FP_Ensemble']])
             st.markdown(f"**Total Predicted FP**: {round(l['Total_FP'], 2)} | **Total Salary**: {int(l['Total_Salary'])}")
+
+        # --- 5. Optional: CSV Export & Score Comparison --- #
+        # Export Top Lineups
+        export_button = st.button("⬇️ Export Top Lineups to CSV")
+        if export_button:
+            export_data = []
+            for idx, l in enumerate(top_lineups):
+                cap_row = series_df.loc[[l['Captain']]].copy()
+                cap_row['Role'] = 'Captain'
+                util_rows = series_df.loc[l['UTILs']].copy()
+                util_rows['Role'] = 'UTIL'
+                lineup_df = pd.concat([cap_row, util_rows])
+                lineup_df['LineupRank'] = idx + 1
+                lineup_df['LineupTotalPredictedFP'] = l['Total_FP']
+                lineup_df['LineupTotalSalary'] = l['Total_Salary']
+                export_data.append(lineup_df)
+
+            export_csv = pd.concat(export_data).to_csv(index=False).encode('utf-8')
+            st.download_button("Download Top Lineups CSV", data=export_csv, file_name="top_lineups.csv", mime="text/csv")
+
+        # Show Predicted vs Actual Fantasy Points
+        st.subheader("📈 Predicted vs Actual Fantasy Points (Top 10 Lineups)")
+        comparison_rows = []
+        for l in top_lineups[:10]:
+            cap = series_df.loc[l['Captain']]
+            utils = series_df.loc[l['UTILs']]
+            predicted = 1.5 * cap['Predicted_FP_Ensemble'] + utils['Predicted_FP_Ensemble'].sum()
+            actual = 1.5 * cap['DraftKings_FP_Calculated'] + utils['DraftKings_FP_Calculated'].sum()
+            comparison_rows.append({
+                'Captain': cap['Team'],
+                'Total_Predicted_FP': predicted,
+                'Total_Actual_FP': actual,
+                'Difference': actual - predicted
+            })
+        comp_df = pd.DataFrame(comparison_rows)
+        st.dataframe(comp_df)
 
         # Optional: Check for ground truth match if Was_Captain and Was_UTIL* are available
         role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
