@@ -68,11 +68,12 @@ if uploaded_file:
     model_types = ["Lasso", "Ridge", "ElasticNet"]
     st.write("Training models:", ", ".join(model_types))
 
-    role_cols = ['Was_Captain?', 'Was_UTIL1?', 'Was_UTIL2?', 'Was_UTIL3?', 'Was_UTIL4?', 'Was_UTIL5?']
+    role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
+    df.columns = df.columns.str.strip().str.replace('?', '', regex=False)
     available_roles = [col for col in role_cols if col in df.columns]
 
     if available_roles:
-        features = df.select_dtypes(include=[np.number]).drop(columns=available_roles, errors='ignore').dropna(axis=1)
+        features = df.select_dtypes(include=[np.number]).drop(columns=available_roles, errors='ignore')
 
         X = features
         Y = df[available_roles].astype(int)
