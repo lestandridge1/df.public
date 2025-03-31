@@ -40,8 +40,8 @@ if uploaded_file:
     if all(col in df.columns for col in stat_cols):
         def compute_dk_points(row):
             pts = row.get('PTS', row.get('Points', 0))
-            threes = row.get('3PM', row.get('3P', 0))
-            reb = row.get('REB', row.get('TRB', 0))
+            threes = row.get('3P', row.get('3P', 0))
+            reb = row.get('TRB', row.get('TRB', 0))
             ast = row.get('AST', row.get('Assists', 0))
             blk = row.get('BLK', row.get('Blocks', 0))
             stl = row.get('STL', row.get('Steals', 0))
@@ -58,7 +58,7 @@ if uploaded_file:
 
         df['DraftKings_FP_Calculated'] = df.apply(compute_dk_points, axis=1)
         st.subheader("📊 DraftKings Points Calculated")
-        st.dataframe(df[['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
+        st.dataframe(df[['PTS', '3P', 'TRB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
 
     # --- 3. Model Selection --- #
     st.subheader("🧠 Model Selection and Role Prediction")
