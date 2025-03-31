@@ -188,6 +188,17 @@ if 'Series ID' in df.columns:
 
         # Show Predicted vs Actual Fantasy Points
         st.subheader("📈 Predicted vs Actual Fantasy Points (Top 10 Lineups)")
+
+        # Show actual score of the perfect historical lineup
+        if 'true_lineup_ids' in locals():
+            true_lineup = series_df.loc[true_lineup_ids]
+            true_cap = true_lineup[true_lineup['Was_Captain'] == 1]
+            true_utils = true_lineup[true_lineup['Was_Captain'] != 1]
+            if not true_cap.empty and len(true_utils) == 5:
+                cap_fp_actual = 1.5 * true_cap['DraftKings_FP_Calculated'].values[0]
+                util_fp_actual = true_utils['DraftKings_FP_Calculated'].sum()
+                true_total_actual = cap_fp_actual + util_fp_actual
+                st.markdown(f"🎯 **Historical Perfect Lineup Score:** {round(true_total_actual, 2)} DK Points")
         comparison_rows = []
         for l in top_lineups[:10]:
             cap = series_df.loc[l['Captain']]
