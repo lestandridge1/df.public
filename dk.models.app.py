@@ -24,7 +24,7 @@ if uploaded_file:
 
     # --- 2. DraftKings Fantasy Point Calculator --- #
     stat_cols = ['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV']
-    alt_names = ['Points', 'ThreePM', 'TotalRebounds', 'Assists', 'Blocks', 'Steals', 'Turnovers']
+    alt_names = ['Points', '3P', 'TRB', 'Assists', 'Blocks', 'Steals', 'Turnovers']
     col_map = dict(zip(stat_cols, alt_names))
     available = [col for col in stat_cols if col in df.columns]
 
@@ -51,10 +51,10 @@ if uploaded_file:
         st.subheader("📊 DraftKings Points Calculated")
         st.dataframe(df[['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
 
-# --- 3. Model Selection --- #
+    # --- 3. Model Selection --- #
     st.subheader("🧠 Model Selection and Role Prediction")
     model_types = ["Lasso", "Ridge", "ElasticNet"]
-st.write("Training models:", ", ".join(model_types))
+    st.write("Training models:", ", ".join(model_types))
 
     role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
     available_roles = [col for col in role_cols if col in df.columns]
@@ -67,34 +67,28 @@ st.write("Training models:", ", ".join(model_types))
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
         def train_model(X_train, y_train, model_type):
-    if model_type == "Lasso":
-        return Lasso(alpha=0.1).fit(X_train, y_train)
-    elif model_type == "Ridge":
-        return Ridge(alpha=1.0).fit(X_train, y_train)
-    else:
-        return ElasticNet(alpha=0.1, l1_ratio=0.5).fit(X_train, y_train)
+            if model_type == "Lasso":
+                return Lasso(alpha=0.1).fit(X_train, y_train)
+            elif model_type == "Ridge":
+                return Ridge(alpha=1.0).fit(X_train, y_train)
+            else:
+                return ElasticNet(alpha=0.1, l1_ratio=0.5).fit(X_train, y_train)
 
         predictions = {}
         st.text("Classification Reports for All Roles:")
         for role in available_roles:
-            st.write(f"
-**{role}**")
+            st.write(f"\n**{role}**")
             preds_all = []
             for model_type in model_types:
                 model = train_model(X_train, Y_train[role], model_type)
                 preds = model.predict(X_test) > 0.5
                 preds_all.append(preds.astype(int))
-                st.text(f"Model: {model_type}
-" + classification_report(Y_test[role], preds))
+                st.text(f"Model: {model_type}\n" + classification_report(Y_test[role], preds))
 
             # Ensemble Voting: majority vote
             ensemble_pred = (np.sum(preds_all, axis=0) >= 2).astype(int)
             predictions[role] = ensemble_pred
-            st.text("Ensemble (Voting)
-" + classification_report(Y_test[role], ensemble_pred))
-            predictions[role] = preds
-            st.write(f"\n**{role}**")
-            st.text(classification_report(Y_test[role], preds))
+            st.text("Ensemble (Voting)\n" + classification_report(Y_test[role], ensemble_pred))
 
         # --- 6. Accuracy Evaluator --- #
         st.subheader("✅ Accuracy Evaluator")
@@ -112,88 +106,3 @@ st.write("Training models:", ", ".join(model_types))
 
     else:
         st.warning("No role columns found to train models on. Expected: Was_Captain, Was_UTIL1, ..., Was_UTIL5")
-
-    # --- 7. Top-N Lineup Match Evaluator --- #
-    st.subheader("📈 Top-N Lineup Match Evaluator")
-    if 'Series ID' in df.columns and 'DraftKings_FP_Calculated' in df.columns and 'Draftkings Captain Salary' in df.columns:
-        top_n = st.slider("Select Top-N range to evaluate", min_value=1, max_value=50, value=10)
-        df['Season'] = df['Series ID'].astype(str).str[:4]
-        team_filter = st.selectbox("Filter by Team (optional)", options=["All"] + sorted(df['Team'].dropna().unique().tolist()))
-        season_filter = st.selectbox("Filter by Season (optional)", options=["All"] + sorted(df['Season'].dropna().unique().tolist()))
-
-        match_ranks = []
-        filtered_df = df.copy()
-        if team_filter != "All":
-            filtered_df = filtered_df[filtered_df['Team'] == team_filter]
-        if season_filter != "All":
-            filtered_df = filtered_df[filtered_df['Season'] == season_filter]
-
-        grouped = filtered_df.groupby("Series ID")
-        for series_id, group in grouped:
-            players = group.copy()
-            players = players.dropna(subset=['DraftKings_FP_Calculated', 'Draftkings Captain Salary'])
-
-            if players.shape[0] < 6:
-                continue
-
-            candidates = []
-            for cap_idx in players.index:
-                cap_row = players.loc[cap_idx]
-                util_pool = players.drop(index=cap_idx)
-                util_combos = util_pool.sample(min(5, len(util_pool)))
-
-                util_salary = (2/3) * util_combos['Draftkings Captain Salary'].sum()
-                total_salary = cap_row['Draftkings Captain Salary'] + util_salary
-                if total_salary > 50000:
-                    continue
-
-                total_fp = 1.5 * cap_row['DraftKings_FP_Calculated'] + util_combos['DraftKings_FP_Calculated'].sum()
-                lineup_ids = [cap_idx] + util_combos.index.tolist()
-                candidates.append((total_fp, lineup_ids))
-
-            candidates = sorted(candidates, key=lambda x: -x[0])
-
-            ground_truth = players[players[role_cols].sum(axis=1) > 0].index.tolist()
-            if len(ground_truth) == 6:
-                for rank, (_, lineup_ids) in enumerate(candidates[:top_n]):
-                    if set(lineup_ids) == set(ground_truth):
-                        match_ranks.append(rank + 1)
-                        break
-                else:
-                    match_ranks.append(None)
-
-        st.write("Found Lineups at Ranks (if matched within Top-N):")
-        st.write(match_ranks)
-        found_count = sum(1 for x in match_ranks if x is not None)
-        total = len(match_ranks)
-        st.metric("Match Rate in Top-N", f"{found_count}/{total} ({round((found_count/total)*100, 2)}%)")
-
-        # --- 8. Match Rank Distribution Visualization & Export --- #
-        if match_ranks:
-            st.subheader("📊 Match Rank Distribution")
-            valid_ranks = [r for r in match_ranks if r is not None]
-            if valid_ranks:
-                fig, ax = plt.subplots()
-                ax.hist(valid_ranks, bins=range(1, max(valid_ranks)+2), align='left', rwidth=0.8)
-                ax.set_xlabel("Rank Where Match Occurred")
-                ax.set_ylabel("Number of Contests")
-                ax.set_title("Distribution of Correct Lineup Rank Position")
-                st.pyplot(fig)
-            else:
-                st.info("No matches found in Top-N for visualization.")
-
-            export_n = st.number_input("How many top lineups to export?", min_value=1, max_value=100, value=10)
-            export_lineups = candidates[:export_n]
-            export_rows = []
-            for i, (fp, lineup_ids) in enumerate(export_lineups):
-                lineup_data = df.loc[lineup_ids].copy()
-                lineup_data['Lineup_Rank'] = i + 1
-                lineup_data['Projected_Total_FP'] = fp
-                export_rows.append(lineup_data)
-
-            if export_rows:
-                export_df = pd.concat(export_rows)
-                csv = export_df.to_csv(index=False).encode('utf-8')
-                st.download_button("⬇️ Download Top Lineups CSV", data=csv, file_name="top_draftkings_lineups.csv", mime='text/csv')
-    else:
-        st.warning("Missing required columns: Series ID, DraftKings_FP_Calculated, or Draftkings Captain Salary")
