@@ -24,8 +24,20 @@ if uploaded_file:
 
     # --- 2. DraftKings Fantasy Point Calculator --- #
     stat_cols = ['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV']
-    if all(col in df.columns for col in stat_cols):
+    alt_names = ['Points', 'ThreePM', 'TotalRebounds', 'Assists', 'Blocks', 'Steals', 'Turnovers']
+    col_map = dict(zip(stat_cols, alt_names))
+    available = [col for col in stat_cols if col in df.columns]
 
+    if len(available) < len(stat_cols):
+        renamed = False
+        for orig, alt in col_map.items():
+            if alt in df.columns:
+                df[orig] = df[alt]
+                renamed = True
+        if not all(col in df.columns for col in stat_cols):
+            st.warning("Missing one or more required stat columns: PTS, 3PM, REB, AST, BLK, STL, TOV")
+
+    if all(col in df.columns for col in stat_cols):
         def compute_dk_points(row):
             double_double_count = sum([row['PTS'] >= 10, row['REB'] >= 10, row['AST'] >= 10, row['STL'] >= 10, row['BLK'] >= 10])
             triple_bonus = 3 if double_double_count >= 3 else 0
@@ -38,12 +50,11 @@ if uploaded_file:
         df['DraftKings_FP_Calculated'] = df.apply(compute_dk_points, axis=1)
         st.subheader("📊 DraftKings Points Calculated")
         st.dataframe(df[['PTS', '3PM', 'REB', 'AST', 'BLK', 'STL', 'TOV', 'DraftKings_FP_Calculated']].head())
-    else:
-        st.warning("Missing one or more required stat columns: PTS, 3PM, REB, AST, BLK, STL, TOV")
 
-    # --- 3. Model Selection --- #
+# --- 3. Model Selection --- #
     st.subheader("🧠 Model Selection and Role Prediction")
-    model_type = st.selectbox("Select Model", ["Lasso", "Ridge", "ElasticNet"])
+    model_types = ["Lasso", "Ridge", "ElasticNet"]
+st.write("Training models:", ", ".join(model_types))
 
     role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
     available_roles = [col for col in role_cols if col in df.columns]
@@ -55,19 +66,32 @@ if uploaded_file:
         Y = df[available_roles].astype(int)
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=42)
 
-        def train_model(X_train, y_train):
-            if model_type == "Lasso":
-                return Lasso(alpha=0.1).fit(X_train, y_train)
-            elif model_type == "Ridge":
-                return Ridge(alpha=1.0).fit(X_train, y_train)
-            else:
-                return ElasticNet(alpha=0.1, l1_ratio=0.5).fit(X_train, y_train)
+        def train_model(X_train, y_train, model_type):
+    if model_type == "Lasso":
+        return Lasso(alpha=0.1).fit(X_train, y_train)
+    elif model_type == "Ridge":
+        return Ridge(alpha=1.0).fit(X_train, y_train)
+    else:
+        return ElasticNet(alpha=0.1, l1_ratio=0.5).fit(X_train, y_train)
 
         predictions = {}
         st.text("Classification Reports for All Roles:")
         for role in available_roles:
-            model = train_model(X_train, Y_train[role])
-            preds = model.predict(X_test) > 0.5
+            st.write(f"
+**{role}**")
+            preds_all = []
+            for model_type in model_types:
+                model = train_model(X_train, Y_train[role], model_type)
+                preds = model.predict(X_test) > 0.5
+                preds_all.append(preds.astype(int))
+                st.text(f"Model: {model_type}
+" + classification_report(Y_test[role], preds))
+
+            # Ensemble Voting: majority vote
+            ensemble_pred = (np.sum(preds_all, axis=0) >= 2).astype(int)
+            predictions[role] = ensemble_pred
+            st.text("Ensemble (Voting)
+" + classification_report(Y_test[role], ensemble_pred))
             predictions[role] = preds
             st.write(f"\n**{role}**")
             st.text(classification_report(Y_test[role], preds))
