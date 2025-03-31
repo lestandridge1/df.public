@@ -68,7 +68,7 @@ if uploaded_file:
     model_types = ["Lasso", "Ridge", "ElasticNet"]
     st.write("Training models:", ", ".join(model_types))
 
-    role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
+    role_cols = ['Was_Captain?', 'Was_UTIL1?', 'Was_UTIL2?', 'Was_UTIL3?', 'Was_UTIL4?', 'Was_UTIL5?']
     available_roles = [col for col in role_cols if col in df.columns]
 
     if available_roles:
