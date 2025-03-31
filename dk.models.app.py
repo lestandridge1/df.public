@@ -93,6 +93,9 @@ if uploaded_file:
 
     # --- 4. Lineup Optimizer Using Predicted Fantasy Points by Series ID --- #
 st.subheader("💸 Optimized Lineups Using Predicted Fantasy Points by Series ID")
+if 'Series ID' in df.columns:
+    unique_series = df['Series ID'].unique().tolist()
+    selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
 unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
 selected_series = st.selectbox("Select a Series ID to run lineup optimization for:", unique_series)
         unique_series = df['Series ID'].unique().tolist() if 'Series ID' in df.columns else []
@@ -147,6 +150,8 @@ selected_series = st.selectbox("Select a Series ID to run lineup optimization fo
                 util_rows = series_df.loc[l['UTILs']].copy()
                 util_rows['Role'] = 'UTIL'
                 lineup_df = pd.concat([cap_row, util_rows])
+                if 'Starters' in lineup_df.columns:
+                    lineup_df.rename(columns={'Starters': 'PlayerName'}, inplace=True)
                 lineup_df['LineupRank'] = idx + 1
                 lineup_df['LineupTotalPredictedFP'] = l['Total_FP']
                 lineup_df['LineupTotalSalary'] = l['Total_Salary']
