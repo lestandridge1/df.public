@@ -138,7 +138,7 @@ if 'Series ID' in df.columns:
             if 'true_lineup_ids' in locals():
                 lineup_ids = [l['Captain']] + l['UTILs']
                 match_count = len(set(lineup_ids).intersection(set(true_lineup_ids)))
-                is_match = match_count == 6 
+                is_match = match_count == 6
             if highlight_matches and is_match:
                 st.markdown(f"✅ **Lineup #{i+1} - Perfect Match**")
             else:
@@ -195,7 +195,11 @@ if 'Series ID' in df.columns:
         role_cols = ['Was_Captain', 'Was_UTIL1', 'Was_UTIL2', 'Was_UTIL3', 'Was_UTIL4', 'Was_UTIL5']
         series_df.columns = series_df.columns.str.strip().str.replace('?', '', regex=False)
         if all(col in series_df.columns for col in role_cols):
-            true_lineup_ids = series_df[series_df['Was_Captain'] == 1].index.tolist() + series_df[[f'Was_UTIL{i}' for i in range(1,6)]].stack().reset_index().query('0 == 1')['level_0'].tolist()
+            util_ids = []
+            for i in range(1, 6):
+                if f'Was_UTIL{i}' in series_df.columns:
+                    util_ids.extend(series_df[series_df[f'Was_UTIL{i}'] == 1].index.tolist())
+            true_lineup_ids = series_df[series_df['Was_Captain'] == 1].index.tolist() + util_ids
             true_lineup_ids = list(set(true_lineup_ids))
             found_rank = None
             for idx, l in enumerate(top_lineups):
